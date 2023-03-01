@@ -1,0 +1,37 @@
+parameters:
+  - name: env_id
+    type: string
+  - name: allow_failures
+    type: boolean
+    default: false
+  - name: job_name
+    type: string
+    default: Linting
+  - name: vars_dir
+    type: string
+    default: vars
+
+jobs:
+  - job: ${{ parameters.job_name }}
+    continueOnError: ${{ parameters.allow_failures }}
+    steps:
+      # - task: Cache@2
+      #   displayName: Cache Terraform
+      #   inputs:
+      #     key: $(INFRA_TF_CACHE_KEY)
+      #     path: $(INFRA_TF_CACHE_DIR)
+
+
+      - script: |
+          terraform init -backend=false
+          tflint --format=junit --module --var-file=${tflinkfilename} --force | tee tflint-junit.xml
+        displayName: Run tflint
+        workingDirectory: $(INFRA_TF_DIRECTORY)
+      - task: PublishTestResults@2
+        displayName: Publish test results
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: tflint-junit.xml
+          searchFolder: $(INFRA_TF_DIRECTORY)
+          failTaskOnFailedTests: true
+          testRunTitle: tflint - ${{ parameters.env_id }}

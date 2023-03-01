@@ -1,0 +1,28 @@
+parameters:
+- name: application_name
+  displayName: Application Name
+  type: string
+  
+- name: application_version
+  displayName: Application Version
+  type: string
+  
+- name: service_connection
+  displayName: Service Connection
+  type: string
+  
+- name: function_name
+  displayName: Function Name
+  type: string
+
+steps: 
+    - task: AzureFunctionApp@1
+      displayName: AzureFunctionAppDeploy
+      inputs:
+          azureSubscription: ${{parameters.service_connection}}
+          appName: ${{parameters.function_name}}
+          appType: functionAppLinux
+          resourceGroupName: ${{parameters.service_connection}}
+          deploymentMethod: zipDeploy
+          runtimeStack: Python|3.9
+          package: temp/${{parameters.application_name}}-${{parameters.application_version}}.zip

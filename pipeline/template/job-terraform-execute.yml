@@ -1,0 +1,23 @@
+jobs:
+  - job: Execute
+    pool: $(INFRA_CI_AGENT_POOL)
+    steps:
+      # Cache
+      # - task: Cache@2
+      #   displayName: Cache Terraform
+      #   inputs:
+      #     key: $(INFRA_TF_CACHE_KEY)
+      #     path: $(INFRA_TF_CACHE_DIR)
+
+      - task: AzureCLI@2
+        displayName: Execute Terraform
+        inputs:
+          azureSubscription: ${{ parameters.service_connection }}
+          scriptLocation: inlineScript
+          scriptType: bash
+          addSpnToEnvironment: true
+          workingDirectory: $(INFRA_TF_DIRECTORY)
+          inlineScript: |
+            
+            terraform init -input=false -backend-config=$(backendconfig)
+            terraform apply -auto-approve $(Pipeline.Workspace)/plans/nnassignment.plan

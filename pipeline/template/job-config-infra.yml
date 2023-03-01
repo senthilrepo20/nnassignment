@@ -1,0 +1,16 @@
+jobs:
+  - job: Execute
+    pool: $(INFRA_CI_AGENT_POOL)
+    steps:
+      ## This task will create a webhook to push the docker image to funciton app so that automatically all the changes are updated 
+      - task: AzureCLI@2
+        displayName: Config Webhook
+        inputs:
+          azureSubscription: ${{ parameters.service_connection }}
+          scriptLocation: inlineScript
+          scriptType: bash
+          addSpnToEnvironment: true
+          workingDirectory: $(INFRA_TF_DIRECTORY)
+          inlineScript: |
+            webhookurl = az functionapp deployment container config --enable-cd --query CI_CD_URL --output tsv --name $(functionappname) --resource-group $(rgname)
+            az acr webhook create -n SyncFuncApp -r $(acrurl) --uri $(webhookurl) --actions push 

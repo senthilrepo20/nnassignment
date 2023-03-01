@@ -1,0 +1,87 @@
+parameters:
+  - name: service_connection
+    type: string
+  - name: vars_dir
+    type: string
+    default: vars
+  - name: additional_config
+    type: string
+    default: ''
+  - name: be_vars_dir
+    type: string
+    default: vars
+  - name: be_additional_config
+    type: string
+    default: ''
+  - name: repository_ref
+    type: string
+    default: ''
+
+jobs:
+  - job: Plan
+    container:
+      image: $[ variables.INFRA_CONTAINER ]
+      endpoint: bbs-nx3-docker-group-p-sc
+    variables:
+      # We cannot provide an empty 'backend-config' argument, so only include if if we can provide it
+      - name: TF_BE_CONFIG_ARG
+        ${{ if gt(length(parameters.be_additional_config), 0) }}:
+          value: '-backend-config="${{ parameters.be_additional_config }}"'
+        ${{ else }}:
+          value: ''
+      # We cannot provide an empty 'var' argument, so only include if if we can provide it
+      - name: TF_VAR_ARG
+        ${{ if gt(length(parameters.additional_config), 0) }}:
+          value: '-var="${{ parameters.additional_config }}"'
+        ${{ else }}:
+          value: ''
+    steps:
+      # Explicitly checkout source. This will otherwise not happen if you provide a repository_ref.
+      # Note that also the path is set explicitly to make it the same as in deployment jobs.
+      - checkout: self
+        path: self
+
+      # Checkout the pipeline repository so we can access the terraform project
+      - ${{ if gt(length(parameters.repository_ref), 0) }}:
+          - checkout: ${{ parameters.repository_ref }}
+
+
+      - task: Cache@2
+        displayName: Cache Terraform
+        inputs:
+          key: $(INFRA_TF_CACHE_KEY)
+          path: $(INFRA_TF_CACHE_DIR)
+
+      - task: AzureCLI@2
+        displayName: Execute Terraform Plan
+        inputs:
+          azureSubscription: ${{ parameters.service_connection }}
+          scriptLocation: inlineScript
+          scriptType: bash
+          addSpnToEnvironment: true
+          workingDirectory: $(INFRA_TF_DIRECTORY)
+          inlineScript: |
+            # The service connection will have only one bbs subscription. Get its ID
+            subscription_id=$(az account list --query "[? starts_with(name, 'bbs-')] | [0].id" -o tsv)
+            current_env=$(az account show --subscription "$subscription_id" --query name -o tsv | awk -F '-' '{print $2}')
+            
+            # Error out early if the vars file does not exist
+            if [[ ! -f "${{ parameters.vars_dir }}/$current_env.tfvars" ]]; then
+              echo "##vso[task.logissue type=warning]Could not find vars file ${{ parameters.vars_dir }}/$current_env.tfvars"
+              exit 1
+            fi
+            
+            export ARM_SUBSCRIPTION_ID="$subscription_id"
+            export ARM_CLIENT_ID="$servicePrincipalId"
+            export ARM_CLIENT_SECRET="$servicePrincipalKey"
+            export ARM_TENANT_ID="$tenantId"
+            
+            terraform init -input=false -backend-config=${{ parameters.be_vars_dir }}/$current_env-backend.tfvars $(TF_BE_CONFIG_ARG)
+            terraform plan -input=false -var-file=${{ parameters.vars_dir }}/$current_env.tfvars -out=$current_env.plan $(TF_VAR_ARG) | tee plan-output
+            
+            # Print plan output summary (note: stripping 'Plan:' including ANSI codes means skipping 18 characters)
+            plan_summary=$(cat plan-output | grep "Plan:")
+            echo "##vso[task.logissue type=warning]$(date "+%H:%M:%S") [$current_env]: ${plan_summary:18}"
+            
+            # Upload artifact
+            echo "##vso[artifact.upload artifactname=plans]$(readlink -f $current_env.plan)"

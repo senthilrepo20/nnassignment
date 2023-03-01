@@ -1,0 +1,44 @@
+trigger:
+  # Force batching behavior - never run multiple pipelines for the same branch
+  batch: true
+
+  # Continuous deployment on master
+  branches:
+    include:
+      - master
+
+  # Only automatically run when we have changed something in the infra
+  paths:
+    include:
+      - terraform
+
+
+variables:
+  - template: variables.yml
+
+pool: $(INFRA_CD_AGENT_POOL)
+
+stages:
+  - stage: Validate
+    jobs:
+      - template: template/job-terraform-validate.yml
+
+      # TFLint - Check for rules
+      - template: template/job-terraform-lint.yml 
+        parameters:
+          job_name: LintingD
+          env_id: d
+          allow_failures: false
+
+  - stage: Plan
+    jobs:
+      - template: template/job-terraform-validate.yml
+
+  - stage: Execute
+    jobs:
+      - template: template/job-terraform-execute.yml
+  ## Infra created then 
+  ## configure webhook - get the cicd url of the function app and then assign the webhook to the acr
+  - stage: Config
+    jobs:
+      - template: template/job-config-infra.yml

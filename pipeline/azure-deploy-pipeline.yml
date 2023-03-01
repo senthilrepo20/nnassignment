@@ -1,0 +1,48 @@
+trigger:
+  # Force batching behavior - never run multiple pipelines for the same branch
+  batch: true
+
+  # Continuous deployment on master
+  branches:
+    include:
+      - master
+
+  # Only automatically run when we have changed something in the infra
+  paths:
+    include:
+      - terraform
+
+resources:
+  repositories:
+    - repository: python-sample-vscode-flask-tutorial
+      type: git
+      name: senthilr78/NNAssignment
+      ref: master
+
+variables:
+  - template: variables.yml
+
+pool: $(INFRA_CD_AGENT_POOL)
+
+stages:
+  - stage: Build & Deploy Docker
+    jobs:
+      - template: template/step-push-to-acr.yml
+
+      # TFLint - Check for rules
+      - template: template/job-terraform-lint.yml 
+        parameters:
+          job_name: LintingD
+          env_id: d
+          allow_failures: false
+
+  - stage: Deploy Function App
+    jobs:
+      - template: template/azure-function-deploy-step.yml
+        parameters:
+          application_name: $(applicationname)
+          application_version: $(applicationversion)
+          service_connection: $(serviceconnection)
+          function_name: $(functionappname)
+
+

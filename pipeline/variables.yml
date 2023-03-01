@@ -1,0 +1,36 @@
+variables:
+    - name: INFRA_CD_AGENT_POOL
+      value: 'Ubuntu-latest'
+
+    - name: INFRA_TF_DIRECTORY
+      value: '../../terraform'
+
+    - name: backendconfig
+      value: '<backendconfigfile'
+
+    - name: Pipeline.Workspace
+      value: '<pipeline>'
+
+    - name: functionappname
+      value: 'nnassign-func'
+    
+    - name: rgname
+      value: 'nnassignment-rg'
+
+    - name: acrurl
+      value: 'nnazurecontainerregistry.azurecr.io'
+
+    - name: nexus_imageurl
+      value: 'nexusurl.senthil.com'
+      
+    - name: acrname
+      value: 'nnazurecontainerregistry'
+    
+    - name: applicationname
+      value: 'applicationname'
+    
+    - name: application_version
+      value: 'applicationversion'
+
+    - name: service_connection
+      value: 'nnassignment-rg'

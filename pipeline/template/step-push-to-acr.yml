@@ -1,0 +1,65 @@
+parameters:
+  - name: azure_subscription
+    type: string
+  - name: nexus_image
+    type: string
+
+steps:
+
+
+  - task: DockerCompose@0
+    displayName: 'Run a Docker Compose command'
+    inputs:
+      azureSubscription: ${{ parameters.azure_subscription }}
+      azureContainerRegistry: '{"loginServer":"mynnacrreg.azurecr.io", "id" : $(acrname)}'
+      dockerComposeCommand: 'docker run -name web-app -d -p 9000:80 '
+
+  - task: Docker@2
+    displayName: Push image ${{tag}}
+    inputs:
+      command: push
+      repository: ${{ parameters.repository_name }}
+      tags: "${{tag}}"
+  - task: AzureCLI@2
+    displayName: Push container to ACR
+    inputs:
+      azureSubscription: ${{ parameters.azure_subscription }}
+      scriptLocation: inlineScript
+      scriptType: bash
+      inlineScript: |
+        subscription_id=$(az account list --query "[? starts_with(name, 'bbs-')] | [0].id" -o tsv)
+  - task: AzureCLI@2
+    displayName: Docker Compose
+    inputs:
+      azureSubscription: ${{ parameters.azure_subscription }}
+      scriptLocation: inlineScript
+      scriptType: bash
+      inlineScript: |
+        subscription_id=$(az account list --query "[? starts_with(name, 'bbs-')] | [0].id" -o tsv)
+  - task: AzureCLI@2
+    displayName: Build Image
+    inputs:
+      azureSubscription: ${{ parameters.azure_subscription }}
+      scriptLocation: inlineScript
+      scriptType: bash
+      inlineScript: |
+        docker build -t $()
+  - task: AzureCLI@2
+    displayName: Push container to ACR
+    inputs:
+      azureSubscription: ${{ parameters.azure_subscription }}
+      scriptLocation: inlineScript
+      scriptType: bash
+      inlineScript: |
+        subscription_id=$(az account list --query "[? starts_with(name, 'nn-')] | [0].id" -o tsv)
+        acr_name=$(az acr list --subscription $subscription_id --query "[? starts_with(name, 'nn')] | [0].name" -o tsv)
+        acr_endpoint=$(az acr show-endpoints --subscription $subscription_id -n $acr_name --query loginServer -o tsv)
+        echo "##[debug]Determined ACR [$acr_name]"
+        echo "##[debug]Determined ACR endpoint [$acr_endpoint]"
+        echo "Logging in to ACR [$acr_name]..."
+        az acr login --name $acr_name
+        
+        nexus_image="${{ parameters.nexus_image }}"
+        acr_image=$(nexus_imageurl) 
+        
+        docker push --all-tags "$acr_image"

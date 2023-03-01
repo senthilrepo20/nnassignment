@@ -1,0 +1,17 @@
+jobs:
+  - job: Validate
+    pool: $(INFRA_CI_AGENT_POOL)
+    steps:
+      # Cache
+      # - task: Cache@2
+      #   displayName: Cache Terraform
+      #   inputs:
+      #     key: $(INFRA_TF_CACHE_KEY)
+      #     path: $(INFRA_TF_CACHE_DIR)
+
+
+      - script: |
+          terraform init -backend=false
+          terraform plan
+        workingDirectory: $(INFRA_TF_DIRECTORY)
+        displayName: Validate
