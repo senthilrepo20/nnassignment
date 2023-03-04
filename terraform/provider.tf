@@ -14,7 +14,7 @@ terraform {
     resource_group_name  = "nnterraform"
     storage_account_name = "nnterraform30986"
     container_name       = "nntfstatecname"
-    key                  = "0RgtzU+noQs8DbNz9/fQeRvx9fV7XBFekN2S81eOQbXxFxgiY19pKZgNnosNVchkzndptpgZO+RQ+AStxmMd2g=="
+    key                  = "1234"
   }
 }
 
